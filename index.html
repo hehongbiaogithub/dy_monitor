@@ -583,24 +583,36 @@
 
     /* ---------- 系统管理：运行状态 ---------- */
     function kv(k,v,cls){return `<div class="kv"><span>${k}</span><b class="${cls||''}">${v}</b></div>`}
+    function paintHealth(box,s,updatedText){
+      const last=s.last_end_at?new Date(s.last_end_at):null;
+      const age=last?Math.max(0,Math.round((Date.now()-last.getTime())/1000)):null;
+      const ageTxt=age===null?'—':age<60?age+' 秒前':age<3600?Math.round(age/60)+' 分钟前':(age/3600).toFixed(1)+' 小时前';
+      const cls=s.last_status==='success'?'ok':(s.last_status==='partial'?'warn':'bad');
+      const need=s.needs_login&&s.needs_login.length;
+      box.innerHTML=
+        kv('最近采集',`<i class="dot ${cls}"></i>${s.last_status||'—'}`,cls+'-t')+
+        kv('上次结束',`${date(s.last_end_at)}<em>（${ageTxt}）</em>`,'')+
+        kv('成功 / 失败店铺',`${s.shops_ok??'—'} / ${s.shops_fail??'—'}`,'')+
+        kv('需重新登录',need?s.needs_login.join('、'):'无',need?'bad-t':'');
+      el('sys-updated').textContent=updatedText;
+    }
     async function renderHealth(){
       const box=el('health');if(!box)return;
       try{
         const r=await fetch('/api/status',{cache:'no-store'});
         const s=await r.json();
         if(s.error){box.innerHTML=kv('最近采集','尚未执行过采集','');el('sys-updated').textContent='';return;}
-        const last=s.last_end_at?new Date(s.last_end_at):null;
-        const age=last?Math.max(0,Math.round((Date.now()-last.getTime())/1000)):null;
-        const ageTxt=age===null?'—':age<60?age+' 秒前':age<3600?Math.round(age/60)+' 分钟前':(age/3600).toFixed(1)+' 小时前';
-        const cls=s.last_status==='success'?'ok':(s.last_status==='partial'?'warn':'bad');
-        const need=s.needs_login&&s.needs_login.length;
-        box.innerHTML=
-          kv('最近采集',`<i class="dot ${cls}"></i>${s.last_status||'—'}`,cls+'-t')+
-          kv('上次结束',`${date(s.last_end_at)}<em>（${ageTxt}）</em>`,'')+
-          kv('成功 / 失败店铺',`${s.shops_ok??'—'} / ${s.shops_fail??'—'}`,'')+
-          kv('需重新登录',need?s.needs_login.join('、'):'无',need?'bad-t':'');
-        el('sys-updated').textContent='更新于 '+new Date().toTimeString().slice(0,5);
-      }catch(e){box.innerHTML=kv('最近采集','不可用（静态快照模式）','bad-t')}
+        paintHealth(box,s,'更新于 '+new Date().toTimeString().slice(0,5));
+      }catch(e){
+        // 静态快照模式：渲染导出时附带的状态（标注数据截至快照时间）
+        const s=data&&data._status;
+        if(s&&!s.error&&s.last_status!==undefined){
+          const ts=(data._exported_at||'').replace('T',' ').slice(5,16);
+          paintHealth(box,s,ts?`快照状态 · ${ts}`:'快照状态');
+        }else{
+          box.innerHTML=kv('最近采集','暂无状态数据','bad-t');el('sys-updated').textContent='';
+        }
+      }
     }
 
     /* ---------- toast ---------- */
