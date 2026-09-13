@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3973ec">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>店铺经营数据</title>
+  <style>
+    :root{
+      --blue:#3973ec;--blue-soft:#eaf0ff;--ink:#161b24;--ink-2:#4a5462;--muted:#858d99;--muted-2:#a6adb8;
+      --line:#e9ecf2;--card:#fff;--bg:#f4f6fa;
+      --radius:16px;--shadow:0 2px 10px rgba(28,45,80,.06);--shadow-up:0 6px 22px rgba(28,45,80,.10);
+      --tab-h:60px;
+      font-family:"Microsoft YaHei",-apple-system,"PingFang SC","Helvetica Neue",system-ui,sans-serif;
+      color:var(--ink);
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{margin:0;background:var(--bg);font-size:14px}
+    button{font:inherit;color:inherit}
+
+    /* ================= 桌面布局（≥861px）：左侧栏 ================= */
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:212px;flex:0 0 212px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 12px;position:sticky;top:0;height:100vh}
+    .brand{padding:2px 10px 16px;border-bottom:1px solid #f0f2f7;margin-bottom:14px}
+    .brand strong{font-size:16px;letter-spacing:.02em;display:block}
+    .brand small{display:block;color:var(--blue);letter-spacing:.1em;font-size:10px;margin-top:4px}
+    .nav{display:flex;flex-direction:column;gap:4px}
+    .nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;border-radius:10px;padding:11px 12px;color:var(--ink-2);cursor:pointer;font-size:14px;line-height:1.2;transition:background .15s,color .15s,transform .38s cubic-bezier(.2,1.4,.3,1)}
+    .nav button:hover{background:#f4f7fd}
+    .nav button:active{transform:scale(.98);transition:background 0s}
+    .nav button.active{background:var(--blue-soft);color:#2b62d9;font-weight:700}
+    .nav .ico{width:18px;height:18px;flex:0 0 18px;display:block}
+    .sidebar-foot{margin-top:auto;padding:12px 10px 0;border-top:1px solid #f0f2f7;color:var(--muted-2);font-size:11px;line-height:1.7}
+    .content{flex:1;min-width:0}
+
+    /* ================= 顶部 app bar ================= */
+    .appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-bottom:1px solid var(--line);padding:0 20px;height:50px;position:sticky;top:0;z-index:30}
+    .bar-left{display:flex;align-items:center;gap:10px;min-width:0}
+    .appbar h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bar-right{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+    .local-tag{font-size:11px;color:var(--muted);white-space:nowrap}
+    .bar-btn{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;background:transparent;border:0;border-radius:12px;color:var(--blue);cursor:pointer;transition:background .15s,transform .38s cubic-bezier(.2,1.4,.3,1)}
+    .bar-btn:hover{background:#f2f6ff}
+    .bar-btn:active{background:#e6eeff;transform:scale(.98);transition:background 0s}
+    #exit{display:none;color:#c83838}
+    #exit:hover{background:#fdf0f0}
+    .bar-btn.spin svg{animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .page{display:none}
+    .page.active{display:block;animation:pageIn .34s cubic-bezier(.25,.8,.25,1) both}
+    @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .page-wrap{max-width:1180px;padding:16px 22px 60px;margin:0 auto}
+
+    /* ================= 小节标题 + 时段切换 ================= */
+    .sec-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 2px 10px}
+    .sec-title h2{font-size:15px;margin:0;font-weight:700}
+    .sub{font-size:11.5px;color:var(--muted)}
+    .sub-note{font-size:11.5px;color:var(--muted-2);margin:-4px 2px 10px}
+    .seg{position:relative;display:flex;background:#eef1f7;border-radius:11px;padding:3px;gap:2px}
+    .seg-thumb{position:absolute;top:3px;bottom:3px;left:0;width:0;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(28,45,80,.10);will-change:transform;pointer-events:none}
+    .seg button{position:relative;z-index:1;border:0;background:transparent;padding:7px 14px;border-radius:8px;font-size:12.5px;color:var(--ink-2);cursor:pointer;white-space:nowrap;line-height:1.2;transition:color .18s,transform .38s cubic-bezier(.2,1.4,.3,1)}
+    .seg button.active{color:var(--blue);font-weight:700}
+    .seg button:active{transform:scale(.96);transition:color 0s}
+
+    /* ================= 经营汇总 ================= */
+    .summary{margin-bottom:16px}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow)}
+    .kpi label{display:block;font-size:12px;color:var(--muted);margin-bottom:7px;white-space:nowrap}
+    .kpi strong{font-size:23px;font-weight:700;line-height:1.15;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+    .kpi.hero{background:linear-gradient(135deg,#3973ec 0%,#4f86f5 100%);border-color:transparent;box-shadow:0 6px 18px rgba(57,115,236,.26)}
+    .kpi.hero label{color:rgba(255,255,255,.82)}
+    .kpi.hero strong{color:#fff}
+
+    /* ================= 店铺卡片（整卡可点，点击展开） ================= */
+    /* align-items:start —— 展开某张卡片时，同行其它卡片保持自身高度（不被拉伸成空白大块） */
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+    /* .shop 本身永远不参与 transform —— 卡片盒子 = 布局盒子，
+       JS 量到的高度（offsetHeight / getBoundingClientRect）永远是精确值，
+       展开/收起首帧不会因为按压缩放而错位、回弹。
+       按压反馈 scale 下放到内层 .shop-inner（纯视觉层，不影响卡片盒子）。 */
+    .shop{position:relative;display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px 15px;box-shadow:var(--shadow);cursor:pointer;appearance:none;
+      transition:box-shadow .18s,border-color .18s}
+    .shop:hover{box-shadow:var(--shadow-up);border-color:#d6e0f7}
+    .shop-inner{display:block;transition:transform .07s ease}
+    .shop:active .shop-inner{transform:scale(.99)}
+    .shop.animating .shop-inner{transform:none !important;transition:none !important}
+    .shop.expanded{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue),0 6px 20px rgba(57,115,236,.16)}
+    .shop .row1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:3px}
+    .shop h2{font-size:15.5px;margin:0;font-weight:700;line-height:1.4;letter-spacing:.01em}
+    .shop .chev{flex:0 0 auto;color:#c4cbd6;transition:color .18s,transform .2s;margin-top:1px}
+    .shop.expanded .chev{color:var(--blue);transform:rotate(90deg)}
+    .shop .meta{font-size:11.5px;color:var(--muted-2);margin-bottom:13px}
+    .shop .money{display:flex;align-items:baseline;gap:6px}
+    .shop .money b{font-size:25px;font-weight:700;line-height:1.1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+    .shop .money i{font-style:normal;font-size:11.5px;color:var(--muted)}
+    .shop .mini{display:grid;grid-template-columns:1fr 1fr;gap:9px 14px;margin-top:14px;border-top:1px solid #f1f3f7;padding-top:12px}
+    .shop .mini label{display:block;font-size:11.5px;color:var(--muted-2);margin-bottom:3px}
+    .shop .mini strong{font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums}
+
+    /* 展开区：核心经营指标（另外几项）
+       ⚠️ 关键：外层 .extra 只负责"高度动画"，必须没有任何 padding / border / margin ——
+       有 padding 或 border 时，box-sizing:border-box 下高度会被垫住（实测垫在 13px）；
+       有 margin 时，收起末段会突然少掉这一段间距（实测 14px 的末帧台阶）。
+       两者都会让动画末段"冻住 → 突变"，正是"收起到最后跳一下"的根因。
+       所以视觉样式（间距 + 虚线分隔）全部交给内层 .extra-inner，外层只做高度。 */
+    .extra{overflow:hidden}
+    .extra-inner{border-top:1px dashed #dfe5ef;padding-top:26px}
+    .extra-head{font-size:11.5px;color:var(--muted);margin-bottom:9px;font-weight:700;letter-spacing:.02em}
+    .extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+    .extra-item{background:#f8fafd;border-radius:10px;padding:10px 12px}
+    .extra-item label{display:block;font-size:11.5px;color:var(--muted-2);margin-bottom:3px}
+    .extra-item strong{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+
+    /* ================= 系统管理：运行状态 ================= */
+    .section{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:17px;margin-top:14px;box-shadow:var(--shadow)}
+    .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+    h3{font-size:15px;margin:0;font-weight:700}
+    .kv-list{display:flex;flex-direction:column;margin-top:6px}
+    .kv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid #f2f4f8;font-size:13.5px}
+    .kv:last-child{border-bottom:0}
+    .kv span{color:var(--muted)}
+    .kv b{font-weight:700;display:flex;align-items:center;gap:7px;text-align:right;flex-wrap:wrap;justify-content:flex-end}
+    .kv b em{font-style:normal;color:var(--muted-2);font-weight:400;font-size:12px}
+    .dot{width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:#c9cfd8}
+    .dot.ok{background:#22a55c;box-shadow:0 0 0 3px rgba(34,165,92,.14)}
+    .dot.warn{background:#e0912a;box-shadow:0 0 0 3px rgba(224,145,42,.14)}
+    .dot.bad{background:#dc4d4d;box-shadow:0 0 0 3px rgba(220,77,77,.14)}
+    .ok-t{color:#1d8f4e}.warn-t{color:#c97b1c}.bad-t{color:#c83838}
+
+    /* ================= 占位页 ================= */
+    .empty-page{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:52px 30px;text-align:center;box-shadow:var(--shadow);margin-top:14px}
+    .empty-page .ep-icon{width:54px;height:54px;margin:0 auto 18px;border-radius:15px;background:var(--blue-soft);display:grid;place-items:center}
+    .empty-page h2{font-size:18px;margin:0 0 9px}
+    .empty-page p{color:var(--muted);font-size:13.5px;line-height:1.9;margin:0 auto;max-width:460px}
+    .empty-page .planned{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:22px}
+    .empty-page .planned span{background:#f5f7fb;border:1px solid #eaedf4;color:#6c7688;font-size:12px;padding:7px 12px;border-radius:99px}
+
+    /* ================= toast ================= */
+    .toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 30px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);background:rgba(22,27,36,.9);color:#fff;font-size:13px;padding:10px 16px;border-radius:11px;opacity:0;transition:.25s;z-index:99;pointer-events:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+    .toast.show{opacity:1;transform:translateX(-50%)}
+
+    /* ================= 底部 tab（仅手机） ================= */
+    .tabbar{display:none}
+
+    /* ================= 手机适配（≤860px） ================= */
+    @media(max-width:860px){
+      body{background:#f4f6fa;padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom))}
+      .app{display:block}
+      .sidebar{display:none}
+      .appbar{padding:0 12px;height:54px}
+      .appbar h1{display:none}          /* 页名由底部 tab 表达，顶栏不再占位 */
+      #exit{display:grid}               /* 手机端左上角 = 退出 */
+      .bar-btn{width:42px;height:42px;flex:0 0 42px;border-radius:13px}
+      .local-tag{display:none}
+      .page-wrap{padding:10px 12px 20px;max-width:100%}
+
+      .seg button{padding:8px 15px;font-size:13px}
+      .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+      .kpi{padding:12px 13px;border-radius:13px}
+      .kpi strong{font-size:21px}
+      .kpi.hero{grid-column:1 / -1}
+      .kpi.hero strong{font-size:26px}
+      .kpi.wide{grid-column:1 / -1}
+
+      .grid{grid-template-columns:1fr;gap:10px}
+      .shop{padding:15px 15px 14px}
+      .shop h2{font-size:16px}
+      .shop .money b{font-size:26px}
+      .shop .mini strong{font-size:15px}
+
+      .kv{padding:14px 2px;font-size:14px}
+      .empty-page{padding:40px 22px}
+
+      .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;height:calc(var(--tab-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);
+        background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+      .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:transparent;border:0;color:#98a1ae;font-size:10.5px;cursor:pointer;letter-spacing:.01em;transition:color .15s,transform .38s cubic-bezier(.2,1.4,.3,1)}
+      .tabbar button .ico{width:22px;height:22px;display:block}
+      .tabbar button.active{color:var(--blue);font-weight:700}
+      .tabbar button:active{transform:scale(.98);transition:color 0s}
+    }
+    @media(max-width:380px){
+      .summary-grid{grid-template-columns:1fr 1fr}
+      .kpi strong{font-size:19px}
+      .shop .money b{font-size:23px}
+    }
+    /* 减弱动效：尊重系统无障碍设置 */
+    @media (prefers-reduced-motion:reduce){
+      .page.active{animation:none}
+      .shop,.bar-btn,.seg button,.tabbar button,.nav button{transition:none}
+    }
+    /* 加密快照口令门（静态发布模式专用） */
+    #encgate{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:#f3f6fb;padding:20px}
+    #encgate.show{display:flex}
+    .enc-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px 24px;width:min(340px,92vw);box-shadow:var(--shadow);text-align:center}
+    .enc-card h1{font-size:17px;margin:0 0 6px;color:var(--ink)}
+    .enc-card p{font-size:12.5px;color:var(--muted);margin:0 0 18px}
+    .enc-card input{width:100%;padding:12px 14px;font-size:15px;border:1px solid var(--line);border-radius:11px;outline:none;background:var(--panel);color:var(--ink)}
+    .enc-card input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #4d63ec22}
+    .enc-card button{margin-top:14px;width:100%;padding:12px;font-size:15px;font-weight:700;color:#fff;background:var(--blue);border:0;border-radius:11px;cursor:pointer}
+    .enc-card button:disabled{opacity:.6;cursor:wait}
+    .enc-card label{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:12.5px;color:var(--muted);cursor:pointer}
+    .enc-err{color:var(--red);font-size:12.5px;margin-top:12px;min-height:16px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ========== 桌面左侧栏 ========== -->
+    <aside class="sidebar">
+      <div class="brand"><strong>店铺经营数据</strong><small>LOCAL MONITOR</small></div>
+      <nav class="nav" id="nav">
+        <button data-page="my" class="active">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 5 4h14l2 6.5"/><path d="M4 10.5V20h16v-9.5"/><path d="M9 20v-5h6v5"/></svg>
+          我的店铺
+        </button>
+        <button data-page="rivals">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.3a3 3 0 0 1 0 5.4"/><path d="M18.5 14.7c2 .8 3.5 2.4 3.5 5.3"/></svg>
+          同行店铺
+        </button>
+        <button data-page="system">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          系统管理
+        </button>
+      </nav>
+      <div class="sidebar-foot">本地只读看板<br>数据来源：抖店后台采集</div>
+    </aside>
+
+    <div class="content">
+      <!-- ========== 顶部 app bar ========== -->
+      <div class="appbar">
+        <div class="bar-left">
+          <button class="bar-btn" id="exit" type="button" title="退出">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>
+          </button>
+          <h1 id="page-title">我的店铺</h1>
+        </div>
+        <div class="bar-right">
+          <span class="local-tag">本地只读看板</span>
+          <button class="bar-btn" id="refresh" type="button" title="刷新数据">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== 我的店铺 ========== -->
+      <section class="page active" id="page-my">
+        <div class="page-wrap">
+          <div class="summary">
+            <div class="sec-title">
+              <h2>经营汇总</h2>
+              <div class="seg" id="period">
+                <button data-p="today" class="active" type="button">今日</button>
+                <button data-p="yesterday" type="button">昨日</button>
+                <button data-p="week" type="button">近七天</button>
+              </div>
+            </div>
+            <div id="summary-note" class="sub-note"></div>
+            <div id="summary-values" class="summary-grid"></div>
+          </div>
+
+          <div class="sec-title"><h2>店铺明细</h2><span class="sub" id="shops-note"></span></div>
+          <div id="shops" class="grid"></div>
+        </div>
+      </section>
+
+      <!-- ========== 同行店铺（占位） ========== -->
+      <section class="page" id="page-rivals">
+        <div class="page-wrap">
+          <div class="empty-page">
+            <div class="ep-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3973ec" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.3a3 3 0 0 1 0 5.4"/><path d="M18.5 14.7c2 .8 3.5 2.4 3.5 5.3"/></svg></div>
+            <h2>同行店铺</h2>
+            <p>这里将用于跟踪对标同行的经营表现，做自家店铺与同行的横向对比。功能规划中，具体指标与数据来源确定后再开发。</p>
+            <div class="planned"><span>竞店列表管理</span><span>销量/销售额对比</span><span>趋势与排名</span><span>差异预警</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 系统管理 ========== -->
+      <section class="page" id="page-system">
+        <div class="page-wrap">
+          <div class="section">
+            <div class="section-head"><h3>运行状态</h3><span class="sub" id="sys-updated"></span></div>
+            <div id="health" class="kv-list"></div>
+          </div>
+          <div class="empty-page">
+            <div class="ep-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3973ec" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+            <h2>更多系统功能</h2>
+            <p>采集任务、店铺登录态、数据源与看板配置等功能规划中，具体项目确定后再开发。</p>
+            <div class="planned"><span>采集任务与状态</span><span>店铺与登录态</span><span>数据源配置</span><span>日志与导出</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ========== 底部 tab（仅手机显示） ========== -->
+  <nav class="tabbar" id="tabbar">
+    <button data-page="my" class="active">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 5 4h14l2 6.5"/><path d="M4 10.5V20h16v-9.5"/><path d="M9 20v-5h6v5"/></svg>
+      我的店铺
+    </button>
+    <button data-page="rivals">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.3a3 3 0 0 1 0 5.4"/><path d="M18.5 14.7c2 .8 3.5 2.4 3.5 5.3"/></svg>
+      同行店铺
+    </button>
+    <button data-page="system">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      系统管理
+    </button>
+  </nav>
+
+  <!-- ========== 加密快照口令门（仅静态加密模式显示） ========== -->
+  <div id="encgate" role="dialog" aria-modal="true" aria-label="输入访问口令">
+    <form class="enc-card" id="encform">
+      <h1>店铺经营数据</h1>
+      <p>数据已加密，请输入访问口令</p>
+      <input id="encpass" type="password" inputmode="text" autocomplete="current-password" placeholder="访问口令" autofocus>
+      <button type="submit" id="encbtn">解锁看板</button>
+      <label><input type="checkbox" id="encremember" style="width:auto;margin:0"> 在这台设备记住口令</label>
+      <div class="enc-err" id="encerr"></div>
+    </form>
+  </div>
+
+  <script>
+    let data=null,expanded=null,period='today';
+    const el=id=>document.getElementById(id);
+    const date=s=>s?s.replace('T',' ').slice(0,19):'暂无';
+    const baseMetric=(run,name)=>run?.metrics.find(m=>m.name===name);
+    function metric(run,name){
+      if(!run)return undefined;
+      if(name==='净成交订单数'||name==='净成交金额'){
+        const count=name==='净成交订单数',a=baseMetric(run,count?'成交订单数':'成交金额'),b=baseMetric(run,count?'退款订单数(支付时间)':'退款金额(支付时间)');
+        const compatible=count?a?.unit===b?.unit:([a?.unit,b?.unit].every(u=>u==='元'||u==='')&&(!a||a.unit==='元'||a.value===0)&&(!b||b.unit==='元'||b.value===0));
+        if(!a||!b||a.value===null||b.value===null||!compatible)return {name,raw:'—',value:null,unit:count?'':'元'};
+        const value=a.value-b.value;return {name,raw:count?String(value):`¥${value.toFixed(2)}`,value,unit:count?'':'元'};
+      }
+      if(name==='ROI（投产比）'){
+        const net=metric(run,'净成交金额'),spend=baseMetric(run,'投放消耗（店铺被投）');
+        if(net?.value===null||!spend||spend.value===null||spend.value===0)return {name,raw:'—',value:null,unit:''};
+        const value=net.value/spend.value;return {name,raw:value.toFixed(2),value,unit:''};
+      }
+      return baseMetric(run,name);
+    }
+    function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n}
+    function svgIcon(paths,size){const NS='http://www.w3.org/2000/svg';const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox','0 0 24 24');s.setAttribute('width',size);s.setAttribute('height',size);s.setAttribute('fill','none');s.setAttribute('stroke','currentColor');s.setAttribute('stroke-width','2.2');s.setAttribute('stroke-linecap','round');s.setAttribute('stroke-linejoin','round');const p=document.createElementNS(NS,'path');p.setAttribute('d',paths);s.append(p);return s}
+
+    /* ---------- Apple 弹簧动画器 ----------
+       参数模型与 SwiftUI .spring(response, dampingFraction) 对齐：
+       omega = 2π / response，zeta = damping。
+       半隐式欧拉积分（240Hz 子步），天然支持：
+       · 中途打断：从实时位置/速度起步（velocity 传入即速度移交）
+       · prefers-reduced-motion 时直接落位
+       收敛判据（关键）：不能只看"速度小"，否则过阻尼弹簧会在末尾以亚像素速度爬行
+       → 画面看着像冻住，done 一到又突变成终值（就是"收起到最后跳一下"的根因）。
+       所以额外加一条"爬行判据"：单帧位移已小于阈值、且剩余距离占比很小，就直接落到终值。 */
+    const REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function spring({from,to,velocity=0,response=.3,damping=.8,step,done}){
+      if(REDUCED){step&&step(to);done&&done();return{cancel(){},get pos(){return to},get vel(){return 0}}}
+      const w=2*Math.PI/response,z=damping;
+      let x=from,v=velocity,last=-1,raf=0,stop=false;
+      function frame(now){
+        if(stop)return;
+        if(last<0)last=now;
+        const dt=Math.min((now-last)/1000,.064);last=now;
+        const n=Math.max(1,Math.ceil(dt*240)),h=dt/n;
+        const x0=x;
+        for(let i=0;i<n;i++){const a=-w*w*(x-to)-2*z*w*v;v+=a*h;x+=v*h}
+        step&&step(x,v);
+        const dist=Math.abs(x-to);
+        const frameMove=Math.abs(x-x0);
+        /* 1) 到位：剩余 < .5px
+           2) 爬行：本帧位移 < .35px 且剩余已不足起点距离的 3%（说明后面只会更慢、看不出来） */
+        const span=Math.abs(to-from)||1;
+        if(dist<.5 || (frameMove<.35 && dist<span*.03)){
+          stop=true;step&&step(to,0);done&&done();return;
+        }
+        raf=requestAnimationFrame(frame);
+      }
+      raf=requestAnimationFrame(frame);
+      return{cancel(){stop=true;cancelAnimationFrame(raf)},get pos(){return x},get vel(){return v}};
+    }
+
+    /* ---------- 时段取数：今日/昨日 = 当天最后一轮；近七天 = 每天最后一轮加总 ---------- */
+    const fmtMoney=v=>v===null||v===undefined?'—':'¥'+v.toFixed(2);
+    const fmtInt=v=>v===null||v===undefined?'—':String(Math.round(v));
+    const fmtRoi=v=>v===null||v===undefined?'—':v.toFixed(2);
+    const pad2=n=>String(n).padStart(2,'0');
+    const dateStr=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    function periodDates(p){
+      const now=new Date();
+      if(p==='today')return [dateStr(now)];
+      if(p==='yesterday'){const d=new Date(now);d.setDate(d.getDate()-1);return [dateStr(d)]}
+      const out=[];for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);out.push(dateStr(d))}return out;
+    }
+    function lastRunOfDay(shop,day){let last=null;for(const r of shop.history||[]){if(r.time&&r.time.slice(0,10)===day&&(!last||r.time>last.time))last=r}return last}
+    function runsForPeriod(shop,p){return periodDates(p).map(d=>lastRunOfDay(shop,d)).filter(Boolean)}
+    function metricSum(shop,p,name){
+      const runs=runsForPeriod(shop,p);
+      if(!runs.length)return null;
+      let sum=0,any=false;
+      for(const r of runs){const m=metric(r,name);if(m&&Number.isFinite(m.value)){sum+=m.value;any=true}}
+      return any?sum:null;
+    }
+    function spendOf(run){const m=baseMetric(run,'投放消耗（店铺被投）');if(!m||m.value===null)return null;return (m.unit==='元'||(m.unit===''&&m.value===0))?m.value:null}
+    function spendSum(shop,p){const runs=runsForPeriod(shop,p);if(!runs.length)return null;let sum=0,any=false;for(const r of runs){const v=spendOf(r);if(v!==null){sum+=v;any=true}}return any?sum:null}
+    const shopNet=(shop,p)=>metricSum(shop,p,'净成交金额');
+    const shopOrders=(shop,p)=>metricSum(shop,p,'净成交订单数');
+    const shopGmv=(shop,p)=>metricSum(shop,p,'成交金额');
+    function shopRoi(shop,p){const net=shopNet(shop,p),spend=spendSum(shop,p);return net!==null&&spend!==null&&spend!==0?net/spend:null}
+    function sumAll(vals){let s=0;for(const v of vals){if(v===null)return null;s+=v}return s}
+    const EXTRA=[['成交订单数','成交订单数'],['退款订单数','退款订单数(支付时间)'],['退款金额','退款金额(支付时间)']];
+
+    function rankedShops(){
+      return data.shops.map((shop,index)=>({shop,index,value:shopNet(shop,period)})).sort((a,b)=>{
+        const av=Number.isFinite(a.value),bv=Number.isFinite(b.value);
+        if(av!==bv)return bv-av;
+        return av&&a.value!==b.value?b.value-a.value:a.index-b.index;
+      }).map(x=>x.shop);
+    }
+    function renderSummary(){
+      const dates=periodDates(period);
+      const note=period==='week'?`${dates[0].slice(5)} ~ ${dates[6].slice(5)}`:dates[0];
+      const has=data.shops.map(s=>runsForPeriod(s,period).length>0);
+      const nOk=has.filter(Boolean).length;
+      el('summary-note').textContent=`${note} · ${nOk}/${data.shops.length} 家店铺`;
+      const complete=data.shops.length>0&&nOk===data.shops.length;
+      const net=complete?sumAll(data.shops.map(s=>shopNet(s,period))):null;
+      const orders=complete?sumAll(data.shops.map(s=>shopOrders(s,period))):null;
+      const spend=complete?sumAll(data.shops.map(s=>spendSum(s,period))):null;
+      const roi=net!==null&&spend!==null&&spend!==0?net/spend:null;
+      const items=[
+        ['净成交金额',net,'money',1],['净成交订单',orders,'int',0],
+        ['投放消耗',spend,'money',0],['ROI / 投产比',roi,'roi',3]
+      ];
+      const FMT={money:fmtMoney,int:fmtInt,roi:fmtRoi};
+      const box=el('summary-values');
+      /* 先抓旧值再重建，用于数字滚动；tabular-nums 保证滚动时宽度稳定 */
+      const oldVals={};
+      box.querySelectorAll('strong[data-k]').forEach(s=>{const n=parseFloat(s.dataset.v);if(Number.isFinite(n))oldVals[s.dataset.k]=n});
+      box.replaceChildren();
+      for(const [label,value,kind,span] of items){
+        const item=node('div','kpi'+(span===1?' hero':'')+(span===3?' wide':''));
+        const strong=node('strong','',FMT[kind](value));
+        strong.dataset.k=label;strong.dataset.v=value===null?'':String(value);
+        item.append(node('label','',label),strong);box.append(item);
+        const from=oldVals[label];
+        if(!REDUCED&&from!==undefined&&value!==null&&Number.isFinite(value)&&Math.abs(value-from)>0.004){
+          const t0=performance.now(),diff=value-from;
+          const roll=now=>{
+            const p=Math.min((now-t0)/300,1),e=1-Math.pow(1-p,3);
+            strong.textContent=FMT[kind](from+diff*e);
+            if(p<1)requestAnimationFrame(roll);
+          };
+          requestAnimationFrame(roll);
+        }
+      }
+    }
+    let growAnim=null,collapseAnim=null,collapseToken=0,lastExpanded=null;
+    /* 展开：让 .extra 从 0 生长到自然高度 */
+    function growExtra(extraEl){
+      const h=extraEl.offsetHeight;
+      if(REDUCED||h<=0)return;
+      extraEl.style.overflow='hidden';extraEl.style.height='0px';extraEl.style.opacity='0';
+      extraEl.style.transition='opacity .2s ease';
+      requestAnimationFrame(()=>{extraEl.style.opacity='1'});
+      growAnim=spring({from:0,to:h,response:.32,damping:.8,
+        step:x=>{extraEl.style.height=Math.max(0,x)+'px'},
+        done:()=>{growAnim=null;extraEl.style.height='auto';extraEl.style.overflow='';extraEl.style.opacity='1'}});
+    }
+    /* 展开后确保整张卡完整可见：底部被遮挡才滚，滚动量刚好露出卡片底部 + 一点余量 */
+    function revealCard(card){
+      if(!card)return;
+      requestAnimationFrame(()=>{
+        const r=card.getBoundingClientRect();
+        const pad=14;
+        const overlapBottom=r.bottom-(window.innerHeight-pad);
+        if(overlapBottom>0){
+          window.scrollBy({top:Math.min(overlapBottom,r.top-pad),behavior:'smooth'});
+        }
+      });
+    }
+    function render(){
+      const freshExpand=expanded&&expanded!==lastExpanded;
+      renderSummary();
+      const shops=el('shops');shops.replaceChildren();
+      const list=rankedShops();
+      el('shops-note').textContent=`${list.length} 家 · 点卡片展开指标`;
+      for(const shop of list){
+        const runs=runsForPeriod(shop,period);
+        const lastTime=runs.length?runs[runs.length-1].time:null;
+        const card=node('button','shop'+(expanded===shop.id?' expanded':''));
+        card.type='button';
+        card.dataset.shopId=shop.id;
+        /* .shop-inner：卡片内所有内容的视觉层。按压 scale 作用在它身上，
+           卡片盒子（.shop）本身不做任何 transform → 量高度永远精确。 */
+        const inner=node('div','shop-inner');
+        const row1=node('div','row1');
+        const chev=svgIcon('M9 6l6 6-6 6',16);chev.setAttribute('class','chev');
+        row1.append(node('h2','',shop.name),chev);
+        inner.append(row1);
+        inner.append(node('div','meta',`最新采集：${date(lastTime)}`));
+        const money=node('div','money');money.append(node('b','',fmtMoney(shopNet(shop,period))),node('i','','净成交金额'));inner.append(money);
+        const mini=node('div','mini');
+        for(const [label,val] of [['净成交订单',fmtInt(shopOrders(shop,period))],['ROI / 投产比',fmtRoi(shopRoi(shop,period))],['成交金额',fmtMoney(shopGmv(shop,period))],['投放消耗',fmtMoney(spendSum(shop,period))]]){
+          const box=node('div');box.append(node('label','',label),node('strong','',val));mini.append(box);
+        }
+        inner.append(mini);
+        card.append(inner);
+        let extraEl=null;
+        if(expanded===shop.id){
+          /* 外层 .extra = 纯高度动画容器（无 padding/border，高度可真正到 0）；
+             视觉样式放在内层 .extra-inner。放在 .shop-inner 里，随卡片一起缩放。 */
+          const extra=node('div','extra');
+          const exInner=node('div','extra-inner');
+          exInner.append(node('div','extra-head','其他指标'));
+          const grid=node('div','extra-grid');
+          for(const [label,name] of EXTRA){
+            const v=metricSum(shop,period,name);
+            const item=node('div','extra-item');
+            item.append(node('label','',label),node('strong','',name.includes('金额')?fmtMoney(v):fmtInt(v)));
+            grid.append(item);
+          }
+          exInner.append(grid);extra.append(exInner);inner.append(extra);extraEl=extra;
+        }
+        card.onclick=()=>{
+          if(expanded===shop.id){
+            /* ---------- 收起：与展开完全对称 —— 只动 .extra 的高度，卡片高度自然跟随 ---------- */
+            collapseToken++;
+            const token=collapseToken;
+            if(collapseAnim){collapseAnim.cancel();collapseAnim=null}
+            if(growAnim){growAnim.cancel();growAnim=null}
+            if(!extraEl||REDUCED){if(token===collapseToken){expanded=null;render()}return}
+            /* 先把卡片自身的按压缩放摘掉（.animating 幂等覆盖 transform），
+               否则量到的几何与随后布局不一致 → 首帧跳。
+               高度一律用 offsetHeight（纯布局高度，不受 transform 影响）。 */
+            card.classList.add('animating');
+            const h=extraEl.offsetHeight;
+            if(h<=0){card.classList.remove('animating');if(token===collapseToken){expanded=null;render()}return}
+            /* 锚定起点：关过渡 → 设当前高度 → 强制同步布局 → 立刻开始弹簧（不等 rAF，消除起手停顿） */
+            extraEl.style.transition='none';
+            extraEl.style.overflow='hidden';
+            extraEl.style.height=h+'px';
+            extraEl.style.opacity='1';
+            extraEl.style.willChange='height,opacity';
+            void extraEl.offsetHeight;      /* 迫使浏览器立刻应用上面的起始样式（reflow） */
+            extraEl.style.transition='opacity .18s ease';
+            extraEl.style.opacity='0';
+            collapseAnim=spring({from:h,to:0,response:.3,damping:.8,
+              step:x=>{extraEl.style.height=Math.max(0,x)+'px'},
+              done:()=>{
+                collapseAnim=null;
+                if(token!==collapseToken)return;   /* 期间又展开了别家 → 由新渲染接管 */
+                /* 此刻 extra 高度已为 0，重建 DOM 不产生任何布局变化 → 不跳 */
+                extraEl.style.transition='';extraEl.style.height='';
+                extraEl.style.overflow='';extraEl.style.opacity='';extraEl.style.willChange='';
+                card.classList.remove('animating');
+                expanded=null;render();
+              }});
+          }else{
+            /* ---------- 展开（含从 A 店切到 B 店） ---------- */
+            collapseToken++;          /* 使进行中的收起回调失效 */
+            if(collapseAnim){collapseAnim.cancel();collapseAnim=null}
+            if(growAnim){growAnim.cancel();growAnim=null}
+            expanded=shop.id;render();   /* render() 内已对新展开卡调用 growExtra */
+            /* 新卡挂上 .animating：压住按压回弹，避免与生长动画抢 transform */
+            const target=shops.querySelector('.shop.expanded');
+            if(target){
+              target.classList.add('animating');
+              revealCard(target);
+              setTimeout(()=>revealCard(target),300);
+              setTimeout(()=>target.classList.remove('animating'),480);
+            }
+          }
+        };
+        shops.append(card);
+        if(extraEl&&freshExpand)growExtra(extraEl);
+      }
+      lastExpanded=expanded;
+    }
+
+    /* ---------- 系统管理：运行状态 ---------- */
+    function kv(k,v,cls){return `<div class="kv"><span>${k}</span><b class="${cls||''}">${v}</b></div>`}
+    async function renderHealth(){
+      const box=el('health');if(!box)return;
+      try{
+        const r=await fetch('/api/status',{cache:'no-store'});
+        const s=await r.json();
+        if(s.error){box.innerHTML=kv('最近采集','尚未执行过采集','');el('sys-updated').textContent='';return;}
+        const last=s.last_end_at?new Date(s.last_end_at):null;
+        const age=last?Math.max(0,Math.round((Date.now()-last.getTime())/1000)):null;
+        const ageTxt=age===null?'—':age<60?age+' 秒前':age<3600?Math.round(age/60)+' 分钟前':(age/3600).toFixed(1)+' 小时前';
+        const cls=s.last_status==='success'?'ok':(s.last_status==='partial'?'warn':'bad');
+        const need=s.needs_login&&s.needs_login.length;
+        box.innerHTML=
+          kv('最近采集',`<i class="dot ${cls}"></i>${s.last_status||'—'}`,cls+'-t')+
+          kv('上次结束',`${date(s.last_end_at)}<em>（${ageTxt}）</em>`,'')+
+          kv('成功 / 失败店铺',`${s.shops_ok??'—'} / ${s.shops_fail??'—'}`,'')+
+          kv('需重新登录',need?s.needs_login.join('、'):'无',need?'bad-t':'');
+        el('sys-updated').textContent='更新于 '+new Date().toTimeString().slice(0,5);
+      }catch(e){box.innerHTML=kv('最近采集','不可用（静态快照模式）','bad-t')}
+    }
+
+    /* ---------- toast ---------- */
+    function toast(msg){
+      const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.append(t);
+      requestAnimationFrame(()=>t.classList.add('show'));
+      setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),350)},2000);
+    }
+
+    /* ---------- 页面路由 ---------- */
+    const TITLES={my:'我的店铺',rivals:'同行店铺',system:'系统管理'};
+    function showPage(page){
+      if(!TITLES[page])page='my';
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      el('page-'+page).classList.add('active');
+      document.querySelectorAll('.nav button,.tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+      el('page-title').textContent=TITLES[page];
+      document.title=TITLES[page]+' · 店铺经营数据';
+      try{localStorage.setItem('dash.page',page)}catch(e){}
+      window.scrollTo({top:0});
+      /* 从其他页切回时，seg 在隐藏页中量不到尺寸，必须在显示后重定位，否则白块宽 0 */
+      if(page==='my')requestAnimationFrame(()=>segPlace(false));
+    }
+    el('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)});
+    el('tabbar').addEventListener('click',e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)});
+    /* ---------- seg 弹簧滑块（白块滑动，非变色） ---------- */
+    const segEl=el('period');
+    const segThumb=document.createElement('i');segThumb.className='seg-thumb';segEl.prepend(segThumb);
+    let segAnim=null;
+    function segPlace(animate){
+      const btn=segEl.querySelector('button.active');if(!btn)return;
+      segThumb.style.width=btn.offsetWidth+'px';
+      const target=btn.offsetLeft;
+      if(!animate||REDUCED){
+        if(segAnim){segAnim.cancel();segAnim=null}
+        segThumb.style.transform=`translateX(${target}px)`;segThumb.dataset.x=target;return;
+      }
+      /* 打断续接：从实时位置 + 实时速度起步（速度移交） */
+      const from=segAnim?segAnim.pos:parseFloat(segThumb.dataset.x||'0');
+      const vel=segAnim?segAnim.vel:0;
+      if(segAnim)segAnim.cancel();
+      segAnim=spring({from,to:target,velocity:vel,response:.3,damping:.8,
+        step:x=>{segThumb.style.transform=`translateX(${x}px)`;segThumb.dataset.x=x},
+        done:()=>{segAnim=null}});
+    }
+    el('period').addEventListener('click',e=>{
+      const b=e.target.closest('button[data-p]');if(!b)return;
+      period=b.dataset.p;
+      try{localStorage.setItem('dash.period',period)}catch(err){}
+      document.querySelectorAll('#period button').forEach(x=>x.classList.toggle('active',x.dataset.p===period));
+      segPlace(true);
+      render();
+    });
+    el('exit').onclick=()=>{window.close();setTimeout(()=>toast('可直接关闭此页面退出'),350)};
+    /* ---------- 数据加载：本地 API 优先，静态加密快照回退 ---------- */
+    const ENC_PREFIX='DASHENC1:',ENC_ITER=200000;
+    async function decryptSnapshot(text,passphrase){
+      const b64=text.slice(ENC_PREFIX.length).replace(/\s+/g,'');
+      const bin=atob(b64),bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      const salt=bytes.slice(0,16),iv=bytes.slice(16,28),ct=bytes.slice(28);
+      const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(passphrase),'PBKDF2',false,['deriveBits']);
+      const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:ENC_ITER},km,256);
+      const key=await crypto.subtle.importKey('raw',bits,{name:'AES-GCM'},false,['decrypt']);
+      const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
+      return JSON.parse(new TextDecoder().decode(plain));
+    }
+    function askPassphrase(){
+      return new Promise(resolve=>{
+        const gate=el('encgate'),form=el('encform');
+        gate.classList.add('show');
+        const onSubmit=e=>{
+          e.preventDefault();
+          const v=el('encpass').value;if(!v)return;
+          form.removeEventListener('submit',onSubmit);
+          gate.classList.remove('show');resolve(v);
+        };
+        form.addEventListener('submit',onSubmit);
+        setTimeout(()=>el('encpass').focus(),60);
+      });
+    }
+    async function decryptFlow(text){
+      let saved=null;try{saved=localStorage.getItem('dash.enc.pass')}catch(err){}
+      if(saved){
+        try{return await decryptSnapshot(text,saved)}catch(err){try{localStorage.removeItem('dash.enc.pass')}catch(e){}}
+      }
+      for(;;){
+        const entered=await askPassphrase();
+        try{
+          const out=await decryptSnapshot(text,entered);
+          if(el('encremember').checked){try{localStorage.setItem('dash.enc.pass',entered)}catch(err){}}
+          return out;
+        }catch(err){el('encerr').textContent='口令不正确';el('encpass').value='';el('encpass').focus()}
+      }
+    }
+    async function loadSnapshot(){
+      try{
+        const r=await fetch('/api/snapshot',{cache:'no-store'});
+        if(r.ok)return await r.json();
+      }catch(err){}
+      const r2=await fetch('snapshot.json',{cache:'no-store'});
+      if(!r2.ok)throw Error('快照读取失败 '+r2.status);
+      const text=await r2.text();
+      if(text.startsWith(ENC_PREFIX))return await decryptFlow(text);
+      return JSON.parse(text);
+    }
+    async function load(){
+      const btn=el('refresh');btn.disabled=true;btn.classList.add('spin');
+      try{
+        const body=await loadSnapshot();
+        data=body;render();renderHealth();btn.title='刷新数据';
+      }catch(error){toast('数据读取失败');btn.title='读取失败：'+error.message}
+      finally{btn.disabled=false;btn.classList.remove('spin')}
+    }
+    setInterval(renderHealth,60000);
+    el('refresh').onclick=load;
+    let initialPage='my';try{initialPage=localStorage.getItem('dash.page')||'my'}catch(e){}
+    try{period=localStorage.getItem('dash.period')||'today'}catch(e){}
+    document.querySelectorAll('#period button').forEach(b=>b.classList.toggle('active',b.dataset.p===period));
+    showPage(initialPage);
+    requestAnimationFrame(()=>segPlace(false));
+    window.addEventListener('resize',()=>{if(el('page-my').classList.contains('active'))segPlace(false)});
+    if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(el('page-my').classList.contains('active'))segPlace(false)});
+    load();
+  </script>
+</body>
+</html>
