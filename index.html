@@ -151,10 +151,7 @@
       body{background:#f4f6fa;padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom))}
       .app{display:block}
       .sidebar{display:none}
-      .appbar{padding:0 12px;height:54px}
-      .appbar h1{display:none}          /* 页名由底部 tab 表达，顶栏不再占位 */
-      #exit{display:grid}               /* 手机端左上角 = 退出 */
-      .bar-btn{width:42px;height:42px;flex:0 0 42px;border-radius:13px}
+      .appbar{display:none}             /* 手机端删掉顶栏（退出/刷新行）：刷新由切 tab/切后台自动拉取替代（2026-09-14） */
       .local-tag{display:none}
       .page-wrap{padding:10px 12px 20px;max-width:100%}
 
@@ -638,6 +635,7 @@
       window.scrollTo({top:0});
       /* 从其他页切回时，seg 在隐藏页中量不到尺寸，必须在显示后重定位，否则白块宽 0 */
       if(page==='my')requestAnimationFrame(()=>segPlace(false));
+      autoRefresh();
     }
     el('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)});
     el('tabbar').addEventListener('click',e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)});
@@ -711,10 +709,11 @@
         }catch(err){el('encerr').textContent='口令不正确';el('encpass').value='';el('encpass').focus()}
       }
     }
+    let usingAPI=false;
     async function loadSnapshot(){
       try{
         const r=await fetch('/api/snapshot',{cache:'no-store'});
-        if(r.ok)return await r.json();
+        if(r.ok){usingAPI=true;return await r.json()}
       }catch(err){}
       const r2=await fetch('snapshot.json',{cache:'no-store'});
       if(!r2.ok)throw Error('快照读取失败 '+r2.status);
@@ -722,16 +721,29 @@
       if(text.startsWith(ENC_PREFIX))return await decryptFlow(text);
       return JSON.parse(text);
     }
-    async function load(){
+    let lastLoadAt=0,loadBusy=false;
+    async function load(silent){
+      if(loadBusy)return;
+      loadBusy=true;lastLoadAt=Date.now();
       const btn=el('refresh');btn.disabled=true;btn.classList.add('spin');
       try{
         const body=await loadSnapshot();
         data=body;render();renderHealth();btn.title='刷新数据';
-      }catch(error){toast('数据读取失败');btn.title='读取失败：'+error.message}
-      finally{btn.disabled=false;btn.classList.remove('spin')}
+      }catch(error){if(!silent)toast('数据读取失败');btn.title='读取失败：'+error.message}
+      finally{btn.disabled=false;btn.classList.remove('spin');loadBusy=false}
     }
     setInterval(renderHealth,60000);
-    el('refresh').onclick=load;
+    el('refresh').onclick=()=>load(false);
+    /* 手机端顶栏已删，用"无感自动刷新"替代手动刷新：
+       切底部 tab / 从后台切回时拉最新数据。三重护栏：30 秒节流、已有数据、
+       （API 模式或已记住口令）才触发——避免频繁请求和误弹口令框。 */
+    function autoRefresh(){
+      if(!data||loadBusy||Date.now()-lastLoadAt<30000)return;
+      let saved=null;try{saved=localStorage.getItem('dash.enc.pass')}catch(err){}
+      if(!usingAPI&&!saved)return;
+      load(true);
+    }
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoRefresh()});
     let initialPage='my';try{initialPage=localStorage.getItem('dash.page')||'my'}catch(e){}
     try{period=localStorage.getItem('dash.period')||'today'}catch(e){}
     document.querySelectorAll('#period button').forEach(b=>b.classList.toggle('active',b.dataset.p===period));
