@@ -333,7 +333,10 @@
       if(!run)return undefined;
       if(name==='净成交订单数'||name==='净成交金额'){
         const count=name==='净成交订单数',a=baseMetric(run,count?'成交订单数':'成交金额'),b=baseMetric(run,count?'退款订单数(支付时间)':'退款金额(支付时间)');
-        const compatible=count?a?.unit===b?.unit:([a?.unit,b?.unit].every(u=>u==='元'||u==='')&&(!a||a.unit==='元'||a.value===0)&&(!b||b.unit==='元'||b.value===0));
+        /* 单位兼容：'元'=页面带¥/元标记；''=页面裸数字（09-14 起抖店金额不再带¥）。
+           字段名本身已锁定是金额指标（成交金额/退款金额），两种都放行；出现 % 等其他单位才判不兼容。
+           旧规则「非元单位必须值为0」会把无¥标记的非零金额误杀成 —（2026-09-14 修复）。 */
+        const compatible=count?a?.unit===b?.unit:[a?.unit,b?.unit].every(u=>u==='元'||u==='');
         if(!a||!b||a.value===null||b.value===null||!compatible)return {name,raw:'—',value:null,unit:count?'':'元'};
         const value=a.value-b.value;return {name,raw:count?String(value):`¥${value.toFixed(2)}`,value,unit:count?'':'元'};
       }
@@ -404,7 +407,7 @@
       for(const r of runs){const m=metric(r,name);if(m&&Number.isFinite(m.value)){sum+=m.value;any=true}}
       return any?sum:null;
     }
-    function spendOf(run){const m=baseMetric(run,'投放消耗（店铺被投）');if(!m||m.value===null)return null;return (m.unit==='元'||(m.unit===''&&m.value===0))?m.value:null}
+    function spendOf(run){const m=baseMetric(run,'投放消耗（店铺被投）');if(!m||m.value===null)return null;return (m.unit==='元'||m.unit==='')?m.value:null}
     function spendSum(shop,p){const runs=runsForPeriod(shop,p);if(!runs.length)return null;let sum=0,any=false;for(const r of runs){const v=spendOf(r);if(v!==null){sum+=v;any=true}}return any?sum:null}
     const shopNet=(shop,p)=>metricSum(shop,p,'净成交金额');
     const shopOrders=(shop,p)=>metricSum(shop,p,'净成交订单数');
