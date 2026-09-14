@@ -322,7 +322,10 @@
               <div class="mg-actions"><a class="mg-btn" href="/api/manage/template">下载 CSV 模板</a></div>
               <input id="mg-file" type="file" accept=".csv,text/csv" hidden>
               <div id="mg-preview" class="mg-preview" hidden></div>
-              <button id="mg-import-confirm" class="mg-btn primary" type="button" hidden>确认导入并发布</button>
+              <div class="mg-actions">
+                <button id="mg-import-confirm" class="mg-btn primary" type="button" hidden>确认导入并发布</button>
+                <button id="mg-import-cancel" class="mg-btn" type="button" hidden>取消</button>
+              </div>
             </div>
             <div class="section">
               <div class="section-head"><h3>发布与计划任务</h3></div>
@@ -804,8 +807,13 @@
       return body;
     }
     async function manageStart(path,payload){
-      try{await manageRequest(path,payload);importToken=null;el('mg-preview').hidden=true;el('mg-import-confirm').hidden=true;await loadManager()}
+      try{await manageRequest(path,payload);clearImportPreview();await loadManager()}
       catch(err){toast(err.message)}
+    }
+    function clearImportPreview(){
+      importToken=null;importShop=null;el('mg-file').value='';
+      el('mg-preview').textContent='';el('mg-preview').hidden=true;
+      el('mg-import-confirm').hidden=true;el('mg-import-cancel').hidden=true;
     }
     function mgButton(label,style,onClick,disabled){
       const b=node('button','mg-btn'+(style?' '+style:''),label);b.type='button';b.disabled=disabled;b.onclick=onClick;return b;
@@ -884,10 +892,14 @@
           `将覆盖已有导入：${p.overwrite_import_days.length} 天`,`同日已有可信采集：${p.trusted_days.length} 天（页面优先显示采集值）`,
           ...p.sample.map(x=>`${x.day} · 成交金额 ${x.gmv??'—'} · 订单 ${x.orders??'—'}`)];
         el('mg-preview').textContent=lines.join('\n');el('mg-preview').style.whiteSpace='pre-line';el('mg-preview').hidden=false;
-        el('mg-import-confirm').hidden=false;
-      }catch(err){importToken=null;el('mg-preview').hidden=true;el('mg-import-confirm').hidden=true;toast(err.message)}
+        el('mg-import-confirm').hidden=false;el('mg-import-cancel').hidden=false;
+      }catch(err){clearImportPreview();toast(err.message)}
     };
     el('mg-import-confirm').onclick=()=>{if(importToken)manageStart('import',{token:importToken})};
+    el('mg-import-cancel').onclick=()=>{
+      const token=importToken;clearImportPreview();
+      if(token)manageRequest('discard-preview',{token}).catch(()=>{});
+    };
     setInterval(()=>{if(managerEnabled)loadManager()},5000);
     setInterval(renderHealth,60000);
     el('refresh').onclick=()=>load(false);
