@@ -133,6 +133,18 @@
     .dot.warn{background:#e0912a;box-shadow:0 0 0 3px rgba(224,145,42,.14)}
     .dot.bad{background:#dc4d4d;box-shadow:0 0 0 3px rgba(220,77,77,.14)}
     .ok-t{color:#1d8f4e}.warn-t{color:#c97b1c}.bad-t{color:#c83838}
+    .mg-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .mg-btn{border:1px solid #d9e2f4;background:#fff;color:#2d64d8;border-radius:10px;padding:9px 12px;cursor:pointer;font-size:12.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .mg-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .mg-btn.danger{color:#c83838;border-color:#f1d4d4}
+    .mg-btn:disabled{opacity:.45;cursor:not-allowed}
+    .mg-list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+    .mg-shop{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .mg-shop strong{display:block;font-size:14px}.mg-shop small{display:block;color:var(--muted);margin-top:4px}
+    .mg-shop .mg-actions{margin-top:0}
+    .mg-note{font-size:12px;color:var(--muted);line-height:1.7;margin:10px 0 0}
+    .mg-preview{background:#f7f9fe;border:1px solid #dfe7f7;padding:14px;border-radius:12px;margin-top:12px;line-height:1.8}
+    [hidden]{display:none!important}
 
     /* ================= 占位页 ================= */
     .empty-page{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:52px 30px;text-align:center;box-shadow:var(--shadow);margin-top:14px}
@@ -225,7 +237,7 @@
           系统管理
         </button>
       </nav>
-      <div class="sidebar-foot">本地只读看板<br>数据来源：抖店后台采集</div>
+      <div class="sidebar-foot">经营数据看板<br>数据来源：抖店后台采集</div>
     </aside>
 
     <div class="content">
@@ -238,7 +250,7 @@
           <h1 id="page-title">我的店铺</h1>
         </div>
         <div class="bar-right">
-          <span class="local-tag">本地只读看板</span>
+          <span class="local-tag">经营数据看板</span>
           <button class="bar-btn" id="refresh" type="button" title="刷新数据">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
           </button>
@@ -287,7 +299,42 @@
             <div class="section-head"><h3>运行状态</h3><span class="sub" id="sys-updated"></span></div>
             <div id="health" class="kv-list"></div>
           </div>
-          <div class="empty-page">
+          <div id="manager-local" hidden>
+            <div class="section">
+              <div class="section-head"><h3>手动操作</h3><span class="sub" id="mg-next"></span></div>
+              <div class="mg-actions">
+                <button class="mg-btn primary" id="mg-collect-all" type="button">立即采集全部店铺</button>
+                <button class="mg-btn" id="mg-add" type="button">新增店铺并登录</button>
+                <button class="mg-btn" id="mg-publish" type="button">重新发布到 GitHub</button>
+              </div>
+              <p class="mg-note">新增店铺时会在这台电脑打开 Chrome 登录窗口；采集与数据变更完成后自动发布。</p>
+              <div id="mg-job" class="mg-preview" hidden></div>
+              <button id="mg-cancel" class="mg-btn danger" type="button" hidden>取消新增店铺</button>
+            </div>
+            <div class="section">
+              <div class="section-head"><h3>我的店铺</h3><span class="sub" id="mg-shop-count"></span></div>
+              <div id="mg-shops" class="mg-list"></div>
+              <details style="margin-top:14px"><summary style="cursor:pointer;color:var(--blue)">已移除店铺</summary><div id="mg-removed" class="mg-list"></div></details>
+            </div>
+            <div class="section">
+              <div class="section-head"><h3>导入历史数据</h3></div>
+              <p class="mg-note">在上方店铺行点“导入历史”，直接从电脑选择 CSV。先预览日期与覆盖情况，确认后才写入。</p>
+              <div class="mg-actions"><a class="mg-btn" href="/api/manage/template">下载 CSV 模板</a></div>
+              <input id="mg-file" type="file" accept=".csv,text/csv" hidden>
+              <div id="mg-preview" class="mg-preview" hidden></div>
+              <button id="mg-import-confirm" class="mg-btn primary" type="button" hidden>确认导入并发布</button>
+            </div>
+            <div class="section">
+              <div class="section-head"><h3>发布与计划任务</h3></div>
+              <div id="mg-publish-state" class="kv-list"></div>
+              <details><summary style="cursor:pointer;color:var(--blue)">查看最近发布记录</summary><pre id="mg-publish-log" style="white-space:pre-wrap;word-break:break-word;font-size:11px;color:var(--muted)"></pre></details>
+            </div>
+          </div>
+          <div id="manager-remote" class="section">
+            <h3>只读快照</h3>
+            <p class="mg-note">这里显示上次发布时的经营数据和运行状态。新增店铺、导入数据、手动采集等操作请在电脑上打开 http://127.0.0.1:8765/ 后使用系统管理。</p>
+          </div>
+          <div class="empty-page" hidden>
             <div class="ep-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3973ec" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
             <h2>更多系统功能</h2>
             <p>采集任务、店铺登录态、数据源与看板配置等功能规划中，具体项目确定后再开发。</p>
@@ -724,6 +771,7 @@
     }
     let usingAPI=false;
     async function loadSnapshot(){
+      usingAPI=false;
       try{
         const r=await fetch('/api/snapshot',{cache:'no-store'});
         if(r.ok){usingAPI=true;return await r.json()}
@@ -741,10 +789,106 @@
       const btn=el('refresh');btn.disabled=true;btn.classList.add('spin');
       try{
         const body=await loadSnapshot();
-        data=body;render();renderHealth();btn.title='刷新数据';
+        data=body;render();renderHealth();setupManagement();btn.title='刷新数据';
       }catch(error){if(!silent)toast('数据读取失败');btn.title='读取失败：'+error.message}
       finally{btn.disabled=false;btn.classList.remove('spin');loadBusy=false}
     }
+    let managerEnabled=false,managerChecked=false,managerState=null,managerBusy=false,importShop=null,importToken=null,lastCompletedJob='';
+    async function manageRequest(path,payload,extraHeaders){
+      const raw=payload instanceof ArrayBuffer?payload:JSON.stringify(payload||{});
+      const headers={'X-Dash-Manage':'1',...(extraHeaders||{})};
+      if(!(payload instanceof ArrayBuffer))headers['Content-Type']='application/json';
+      const r=await fetch('/api/manage/'+path,{method:'POST',headers,body:raw,cache:'no-store'});
+      const body=await r.json();
+      if(!r.ok)throw Error(body.error||'操作失败');
+      return body;
+    }
+    async function manageStart(path,payload){
+      try{await manageRequest(path,payload);importToken=null;el('mg-preview').hidden=true;el('mg-import-confirm').hidden=true;await loadManager()}
+      catch(err){toast(err.message)}
+    }
+    function mgButton(label,style,onClick,disabled){
+      const b=node('button','mg-btn'+(style?' '+style:''),label);b.type='button';b.disabled=disabled;b.onclick=onClick;return b;
+    }
+    function mgKv(label,value){const row=node('div','kv');row.append(node('span','',label),node('b','',value));return row}
+    function renderManager(s){
+      managerState=s;
+      const active=s.active||[],removed=s.removed||[],running=s.job&&['running','waiting'].includes(s.job.status);
+      el('mg-shop-count').textContent=active.length+' 家在管';
+      const next=s.tasks?.DouyinShopCollector?.next;
+      el('mg-next').textContent=next?'下次自动采集 '+date(next):'';
+      el('mg-collect-all').disabled=!!running;el('mg-add').disabled=!!running;el('mg-publish').disabled=!!running;
+      const makeShop=(shop,isRemoved)=>{
+        const box=node('div','mg-shop'),info=node('div');
+        info.append(node('strong','',shop.name),node('small','',`登录：${shop.login_status} · 已导入 ${shop.imported_days||0} 天`));
+        const actions=node('div','mg-actions');
+        if(isRemoved){actions.append(mgButton('恢复店铺','',()=>manageStart('restore',{shop_id:shop.id}),running))}
+        else{
+          actions.append(mgButton('采集','',()=>manageStart('collect',{shop_id:shop.id}),running));
+          actions.append(mgButton('导入历史','',()=>{importShop=shop;el('mg-file').value='';el('mg-file').click()},running));
+          actions.append(mgButton('移除','danger',()=>{
+            const name=prompt(`输入“${shop.name}”确认移除。历史数据和登录态会保留：`);
+            if(name===shop.name)manageStart('remove',{shop_id:shop.id,confirm_name:name});
+            else if(name!==null)toast('店铺名称不匹配，已取消');
+          },running));
+        }
+        box.append(info,actions);return box;
+      };
+      el('mg-shops').replaceChildren(...active.map(x=>makeShop(x,false)));
+      if(!active.length)el('mg-shops').append(node('p','mg-note','暂无在管店铺，可点“新增店铺并登录”'));
+      el('mg-removed').replaceChildren(...removed.map(x=>makeShop(x,true)));
+      if(!removed.length)el('mg-removed').append(node('p','mg-note','暂无已移除店铺'));
+      const job=el('mg-job');job.hidden=!s.job;
+      if(s.job){job.textContent=`${s.job.message} · ${date(s.job.started_at)}`;
+        if(!running&&s.job.id!==lastCompletedJob){lastCompletedJob=s.job.id;load(true)}
+      }
+      el('mg-cancel').hidden=!(running&&s.job.kind==='add');
+      const pub=el('mg-publish-state');pub.replaceChildren(
+        mgKv('上次采集结束',date(s.status?.last_end_at)),
+        mgKv('最近采集结果',`${s.status?.last_status||'未知'} · 成功 ${s.status?.shops_ok??'—'} / 失败 ${s.status?.shops_fail??'—'}`),
+        mgKv('已发布的采集批次',date(s.published_end_at)),
+        mgKv('下次发布检查',s.tasks?.DouyinShopPublishWatch?.next?date(s.tasks.DouyinShopPublishWatch.next):'计划任务信息暂不可读')
+      );
+      el('mg-publish-log').textContent=(s.publish_log||[]).join('\n')||'暂无发布记录';
+    }
+    async function loadManager(){
+      if(!managerEnabled||managerBusy)return;
+      managerBusy=true;
+      try{const r=await fetch('/api/manage/state',{cache:'no-store'});if(!r.ok)throw Error('管理状态读取失败');renderManager(await r.json())}
+      catch(err){el('mg-next').textContent=err.message}
+      finally{managerBusy=false}
+    }
+    async function setupManagement(){
+      if(managerChecked)return;
+      if(location.hostname!=='127.0.0.1'||!usingAPI)return;
+      managerChecked=true;
+      try{
+        const r=await fetch('/api/manage/capabilities',{cache:'no-store'});
+        const v=await r.json();managerEnabled=r.ok&&v.management===true;
+      }catch(err){managerEnabled=false}
+      el('manager-local').hidden=!managerEnabled;
+      el('manager-remote').hidden=managerEnabled;
+      document.querySelectorAll('.local-tag').forEach(x=>x.textContent=managerEnabled?'本地管理看板':'经营数据看板');
+      if(managerEnabled)loadManager();
+    }
+    el('mg-collect-all').onclick=()=>manageStart('collect',{});
+    el('mg-add').onclick=()=>manageStart('add',{});
+    el('mg-publish').onclick=()=>manageStart('publish',{});
+    el('mg-cancel').onclick=()=>{if(managerState?.job)manageRequest('cancel',{job_id:managerState.job.id}).then(()=>toast('正在取消')).catch(err=>toast(err.message))};
+    el('mg-file').onchange=async e=>{
+      const file=e.target.files?.[0];if(!file||!importShop)return;
+      try{
+        const p=await manageRequest('preview',await file.arrayBuffer(),{'X-Shop-Id':importShop.id,'X-File-Name':encodeURIComponent(file.name)});
+        importToken=p.token;
+        const lines=[`店铺：${p.shop}`,`文件：${file.name}`,`共 ${p.rows} 天，${p.first_day} 至 ${p.last_day}`,
+          `将覆盖已有导入：${p.overwrite_import_days.length} 天`,`同日已有可信采集：${p.trusted_days.length} 天（页面优先显示采集值）`,
+          ...p.sample.map(x=>`${x.day} · 成交金额 ${x.gmv??'—'} · 订单 ${x.orders??'—'}`)];
+        el('mg-preview').textContent=lines.join('\n');el('mg-preview').style.whiteSpace='pre-line';el('mg-preview').hidden=false;
+        el('mg-import-confirm').hidden=false;
+      }catch(err){importToken=null;el('mg-preview').hidden=true;el('mg-import-confirm').hidden=true;toast(err.message)}
+    };
+    el('mg-import-confirm').onclick=()=>{if(importToken)manageStart('import',{token:importToken})};
+    setInterval(()=>{if(managerEnabled)loadManager()},5000);
     setInterval(renderHealth,60000);
     el('refresh').onclick=()=>load(false);
     /* 手机端顶栏已删，用"无感自动刷新"替代手动刷新：
