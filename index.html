@@ -255,9 +255,11 @@
                 <button data-p="today" class="active" type="button">今日</button>
                 <button data-p="yesterday" type="button">昨日</button>
                 <button data-p="week" type="button">近七天</button>
+                <button data-p="history" type="button">历史日期</button>
               </div>
             </div>
             <div id="summary-note" class="sub-note"></div>
+            <input id="history-date" type="date" aria-label="选择历史日期" style="display:none;margin:10px 0;padding:8px;border:1px solid #dfe5ef;border-radius:8px;font:inherit">
             <div id="summary-values" class="summary-grid"></div>
           </div>
 
@@ -325,7 +327,7 @@
   </div>
 
   <script>
-    let data=null,expanded=null,period='today';
+    let data=null,expanded=null,period='today',historyDay='';
     const el=id=>document.getElementById(id);
     const date=s=>s?s.replace('T',' ').slice(0,19):'暂无';
     const baseMetric=(run,name)=>run?.metrics.find(m=>m.name===name);
@@ -394,6 +396,7 @@
     const dateStr=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
     function periodDates(p){
       const now=new Date();
+      if(p==='history')return [historyDay||dateStr(new Date(now.getFullYear(),now.getMonth(),now.getDate()-1))];
       if(p==='today')return [dateStr(now)];
       if(p==='yesterday'){const d=new Date(now);d.setDate(d.getDate()-1);return [dateStr(d)]}
       const out=[];for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);out.push(dateStr(d))}return out;
@@ -426,6 +429,7 @@
     function renderSummary(){
       const dates=periodDates(period);
       const note=period==='week'?`${dates[0].slice(5)} ~ ${dates[6].slice(5)}`:dates[0];
+      el('history-date').style.display=period==='history'?'block':'none';
       const has=data.shops.map(s=>runsForPeriod(s,period).length>0);
       const nOk=has.filter(Boolean).length;
       el('summary-note').textContent=`${note} · ${nOk}/${data.shops.length} 家店铺`;
@@ -504,7 +508,8 @@
         const chev=svgIcon('M9 6l6 6-6 6',16);chev.setAttribute('class','chev');
         row1.append(node('h2','',shop.name),chev);
         inner.append(row1);
-        inner.append(node('div','meta',`最新采集：${date(lastTime)}`));
+        const imported=runs.length&&runs[runs.length-1].source==='imported';
+        inner.append(node('div','meta',`${imported?'历史导入':'最新采集'}：${date(lastTime)}`));
         const money=node('div','money');money.append(node('b','',fmtMoney(shopNet(shop,period))),node('i','','净成交金额'));inner.append(money);
         const mini=node('div','mini');
         for(const [label,val] of [['净成交订单',fmtInt(shopOrders(shop,period))],['ROI / 投产比',fmtRoi(shopRoi(shop,period))],['成交金额',fmtMoney(shopGmv(shop,period))],['投放消耗',fmtMoney(spendSum(shop,period))]]){
@@ -670,6 +675,11 @@
       segPlace(true);
       render();
     });
+    el('history-date').addEventListener('change',e=>{
+      historyDay=e.target.value;
+      try{localStorage.setItem('dash.historyDay',historyDay)}catch(err){}
+      render();
+    });
     el('exit').onclick=()=>{window.close();setTimeout(()=>toast('可直接关闭此页面退出'),350)};
     /* ---------- 数据加载：本地 API 优先，静态加密快照回退 ---------- */
     const ENC_PREFIX='DASHENC1:',ENC_ITER=200000;
@@ -749,6 +759,8 @@
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoRefresh()});
     let initialPage='my';try{initialPage=localStorage.getItem('dash.page')||'my'}catch(e){}
     try{period=localStorage.getItem('dash.period')||'today'}catch(e){}
+    try{historyDay=localStorage.getItem('dash.historyDay')||''}catch(e){}
+    el('history-date').value=historyDay||dateStr(new Date(Date.now()-86400000));
     document.querySelectorAll('#period button').forEach(b=>b.classList.toggle('active',b.dataset.p===period));
     showPage(initialPage);
     requestAnimationFrame(()=>segPlace(false));
