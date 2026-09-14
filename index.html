@@ -474,7 +474,7 @@
     const shopOrders=(shop,p)=>metricSum(shop,p,'净成交订单数');
     const shopGmv=(shop,p)=>metricSum(shop,p,'成交金额');
     function shopRoi(shop,p){const net=shopNet(shop,p),spend=spendSum(shop,p);return net!==null&&spend!==null&&spend!==0?net/spend:null}
-    function sumAll(vals){let s=0;for(const v of vals){if(v===null)return null;s+=v}return s}
+    function sumForSummary(vals){return vals.reduce((sum,v)=>sum+(Number.isFinite(v)?v:0),0)}
     const EXTRA=[['成交订单数','成交订单数'],['退款订单数','退款订单数(支付时间)'],['退款金额','退款金额(支付时间)']];
 
     function rankedShops(){
@@ -488,14 +488,14 @@
       const dates=periodDates(period);
       const note=period==='week'?`${dates[0].slice(5)} ~ ${dates[6].slice(5)}`:dates[0];
       el('history-date').style.display=period==='history'?'block':'none';
-      const has=data.shops.map(s=>runsForPeriod(s,period).length>0);
-      const nOk=has.filter(Boolean).length;
+      const shopRuns=data.shops.map(s=>runsForPeriod(s,period));
+      const nOk=shopRuns.filter(runs=>runs.length>0).length;
+      const netVals=data.shops.map(s=>shopNet(s,period));
+      const orderVals=data.shops.map(s=>shopOrders(s,period));
+      const spendVals=data.shops.map(s=>spendSum(s,period));
+      const net=sumForSummary(netVals),orders=sumForSummary(orderVals),spend=sumForSummary(spendVals);
       el('summary-note').textContent=`${note} · ${nOk}/${data.shops.length} 家店铺`;
-      const complete=data.shops.length>0&&nOk===data.shops.length;
-      const net=complete?sumAll(data.shops.map(s=>shopNet(s,period))):null;
-      const orders=complete?sumAll(data.shops.map(s=>shopOrders(s,period))):null;
-      const spend=complete?sumAll(data.shops.map(s=>spendSum(s,period))):null;
-      const roi=net!==null&&spend!==null&&spend!==0?net/spend:null;
+      const roi=spend!==0?net/spend:null;
       const items=[
         ['净成交金额',net,'money',1],['净成交订单',orders,'int',0],
         ['投放消耗',spend,'money',0],['ROI / 投产比',roi,'roi',3]
