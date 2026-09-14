@@ -144,6 +144,13 @@
     .mg-shop .mg-actions{margin-top:0}
     .mg-note{font-size:12px;color:var(--muted);line-height:1.7;margin:10px 0 0}
     .mg-preview{background:#f7f9fe;border:1px solid #dfe7f7;padding:14px;border-radius:12px;margin-top:12px;line-height:1.8}
+    .mg-preview-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:700}
+    .mg-preview-summary{color:var(--ink-2);font-size:12.5px;margin:6px 0 12px}
+    .mg-preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-content:start;max-height:min(64vh,720px);overflow-y:auto;padding-right:4px}
+    .mg-preview-entry{background:#fff;border:1px solid #e2e8f5;border-radius:10px;padding:9px 11px;min-width:0}
+    .mg-preview-entry strong{font-size:13px;display:block;line-height:1.35}
+    .mg-preview-entry small{display:block;color:var(--muted);font-size:11px;line-height:1.4;margin:2px 0 5px}
+    .mg-preview-entry span{display:block;font-size:12px;color:var(--ink-2);line-height:1.6}
     [hidden]{display:none!important}
 
     /* ================= 占位页 ================= */
@@ -185,6 +192,7 @@
       .shop .mini strong{font-size:15px}
 
       .kv{padding:14px 2px;font-size:14px}
+      .mg-preview-grid{grid-template-columns:1fr;max-height:60vh}
       .empty-page{padding:40px 22px}
 
       .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;height:calc(var(--tab-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);
@@ -888,10 +896,26 @@
       try{
         const p=await manageRequest('preview',await file.arrayBuffer(),{'X-Shop-Id':importShop.id,'X-File-Name':encodeURIComponent(file.name)});
         importToken=p.token;
-        const lines=[`店铺：${p.shop}`,`文件：${file.name}`,`共 ${p.rows} 天，${p.first_day} 至 ${p.last_day}`,
-          `将覆盖已有导入：${p.overwrite_import_days.length} 天`,`同日已有可信采集：${p.trusted_days.length} 天（页面优先显示采集值）`,
-          ...p.sample.map(x=>`${x.day} · 成交金额 ${x.gmv??'—'} · 订单 ${x.orders??'—'}`)];
-        el('mg-preview').textContent=lines.join('\n');el('mg-preview').style.whiteSpace='pre-line';el('mg-preview').hidden=false;
+        if(!Array.isArray(p.entries)||p.entries.length!==p.rows)throw Error('预览数据不完整，请重试');
+        const head=node('div','mg-preview-head');
+        head.append(node('span','',`店铺：${p.shop}`),node('span','',`文件：${file.name}`));
+        const summary=node('div','mg-preview-summary',
+          `共 ${p.rows} 天 · ${p.first_day} 至 ${p.last_day} · 将覆盖已有导入 ${p.overwrite_import_days.length} 天 · 同日有可信采集 ${p.trusted_days.length} 天（页面优先显示采集值）`);
+        const grid=node('div','mg-preview-grid'),items=document.createDocumentFragment();
+        const trusted=new Set(p.trusted_days),overwritten=new Set(p.overwrite_import_days);
+        const show=v=>v===null||v===undefined?'—':String(v);
+        const money=v=>v===null||v===undefined?'—':'¥'+String(v);
+        for(const x of p.entries){
+          const card=node('div','mg-preview-entry');
+          card.append(node('strong','',x.day));
+          const flags=[];if(trusted.has(x.day))flags.push('已有可信采集');if(overwritten.has(x.day))flags.push('覆盖旧导入');
+          if(flags.length)card.append(node('small','',flags.join(' · ')));
+          card.append(node('span','',`成交金额：${money(x.gmv)}　成交订单：${show(x.orders)}`));
+          card.append(node('span','',`退款金额：${money(x.refund)}　退款订单：${show(x.refund_orders)}`));
+          card.append(node('span','',`投放消耗：${money(x.spend)}`));
+          items.append(card);
+        }
+        grid.append(items);el('mg-preview').replaceChildren(head,summary,grid);el('mg-preview').hidden=false;
         el('mg-import-confirm').hidden=false;el('mg-import-cancel').hidden=false;
       }catch(err){clearImportPreview();toast(err.message)}
     };
