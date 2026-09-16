@@ -771,7 +771,7 @@
     /* DASHENC1 = 明文直接加密（旧格式，仍兼容）；DASHENC2 = gzip 压缩后再加密（当前格式，
        传输量约 1/24）。SNAP_VER 由导出脚本替换为内容指纹，用于「版本化 URL + 浏览器缓存」：
        内容没变则 URL 不变、直接命中缓存（零下载），内容变了自动拉新。本地源码保留占位符。 */
-    const ENC_PREFIX_V1='DASHENC1:',ENC_PREFIX='DASHENC2:',ENC_ITER=200000,SNAP_VER='472325ea2e';
+    const ENC_PREFIX_V1='DASHENC1:',ENC_PREFIX='DASHENC2:',ENC_ITER=200000,SNAP_VER='ea704b1fe9';
     async function gunzipBytes(buf){
       if(typeof DecompressionStream==='undefined')
         throw Error('当前浏览器过旧，不支持解压（请升级系统或换新版浏览器）');
