@@ -389,6 +389,14 @@
     const el=id=>document.getElementById(id);
     const date=s=>s?s.replace('T',' ').slice(0,19):'暂无';
     const baseMetric=(run,name)=>run?.metrics.find(m=>m.name===name);
+    /* 投放消耗字段名兼容（2026-09-16 标哥确认）：
+       抖店后台该字段有两种形态——「投放消耗（店铺被投）」（全角括号，多数店）
+       与「投放消耗(店铺绑定)」（半角括号，Lumi 已在后台改为此项，数据更准）。
+       两者都视为该店投放消耗。匹配放宽：归一化括号/空格后以「投放消耗」或「店铺消耗」开头即认。
+       数据库保留后台原始名称不做归一化，仅此处宽容匹配——后台以后改后缀也无需改代码。 */
+    const normMetricName=s=>(s||'').replace(/[（(]/g,'(').replace(/[）)]/g,')').replace(/\s+/g,'');
+    const isSpendName=s=>/^(投放|店铺)消耗/.test(normMetricName(s));
+    const spendMetric=run=>run?.metrics.find(m=>isSpendName(m.name));
     function metric(run,name){
       if(!run)return undefined;
       if(name==='净成交订单数'||name==='净成交金额'){
@@ -401,7 +409,7 @@
         const value=a.value-b.value;return {name,raw:count?String(value):`¥${value.toFixed(2)}`,value,unit:count?'':'元'};
       }
       if(name==='ROI（投产比）'){
-        const net=metric(run,'净成交金额'),spend=baseMetric(run,'投放消耗（店铺被投）');
+        const net=metric(run,'净成交金额'),spend=spendMetric(run);
         if(net?.value===null||!spend||spend.value===null||spend.value===0)return {name,raw:'—',value:null,unit:''};
         const value=net.value/spend.value;return {name,raw:value.toFixed(2),value,unit:''};
       }
@@ -468,7 +476,7 @@
       for(const r of runs){const m=metric(r,name);if(m&&Number.isFinite(m.value)){sum+=m.value;any=true}}
       return any?sum:null;
     }
-    function spendOf(run){const m=baseMetric(run,'投放消耗（店铺被投）');if(!m||m.value===null)return null;return (m.unit==='元'||m.unit==='')?m.value:null}
+    function spendOf(run){const m=spendMetric(run);if(!m||m.value===null)return null;return (m.unit==='元'||m.unit==='')?m.value:null}
     function spendSum(shop,p){const runs=runsForPeriod(shop,p);if(!runs.length)return null;let sum=0,any=false;for(const r of runs){const v=spendOf(r);if(v!==null){sum+=v;any=true}}return any?sum:null}
     const shopNet=(shop,p)=>metricSum(shop,p,'净成交金额');
     const shopOrders=(shop,p)=>metricSum(shop,p,'净成交订单数');
