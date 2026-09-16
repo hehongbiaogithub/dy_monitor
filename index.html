@@ -224,6 +224,16 @@
     .enc-card button:disabled{opacity:.6;cursor:wait}
     .enc-card label{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:12.5px;color:var(--muted);cursor:pointer}
     .enc-err{color:var(--red);font-size:12.5px;margin-top:12px;min-height:16px}
+    /* 数据加载层：首次打开显示欢迎+加载提示，之后通常一闪而过（不再白屏干等） */
+    #loading{position:fixed;inset:0;z-index:190;display:none;align-items:center;justify-content:center;background:#f3f6fb;padding:20px}
+    #loading.show{display:flex}
+    .load-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:30px 24px;width:min(340px,92vw);box-shadow:var(--shadow);text-align:center}
+    .load-card h1{font-size:17px;margin:0 0 8px;color:var(--ink)}
+    .load-card p{font-size:12.5px;color:var(--muted);margin:0 0 16px;line-height:1.65}
+    .load-spin{width:34px;height:34px;margin:0 auto 16px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:loadspin .8s linear infinite}
+    @keyframes loadspin{to{transform:rotate(360deg)}}
+    .load-step{font-size:12.5px;color:var(--blue);font-weight:700;min-height:18px}
+    @media (prefers-reduced-motion: reduce){.load-spin{animation:none}}
   </style>
 </head>
 <body>
@@ -371,6 +381,16 @@
       系统管理
     </button>
   </nav>
+
+  <!-- ========== 数据加载层（首次访问显示欢迎提示，后台静默下载） ========== -->
+  <div id="loading" role="status" aria-live="polite">
+    <div class="load-card">
+      <div class="load-spin"></div>
+      <h1 id="load-title">正在加载数据</h1>
+      <p id="load-hint">正在获取最新数据，请稍候…</p>
+      <div class="load-step" id="load-step">正在获取数据…</div>
+    </div>
+  </div>
 
   <!-- ========== 加密快照口令门（仅静态加密模式显示） ========== -->
   <div id="encgate" role="dialog" aria-modal="true" aria-label="输入访问口令">
@@ -748,9 +768,20 @@
     });
     el('exit').onclick=()=>{window.close();setTimeout(()=>toast('可直接关闭此页面退出'),350)};
     /* ---------- 数据加载：本地 API 优先，静态加密快照回退 ---------- */
-    const ENC_PREFIX='DASHENC1:',ENC_ITER=200000;
+    /* DASHENC1 = 明文直接加密（旧格式，仍兼容）；DASHENC2 = gzip 压缩后再加密（当前格式，
+       传输量约 1/24）。SNAP_VER 由导出脚本替换为内容指纹，用于「版本化 URL + 浏览器缓存」：
+       内容没变则 URL 不变、直接命中缓存（零下载），内容变了自动拉新。本地源码保留占位符。 */
+    const ENC_PREFIX_V1='DASHENC1:',ENC_PREFIX='DASHENC2:',ENC_ITER=200000,SNAP_VER='472325ea2e';
+    async function gunzipBytes(buf){
+      if(typeof DecompressionStream==='undefined')
+        throw Error('当前浏览器过旧，不支持解压（请升级系统或换新版浏览器）');
+      const stream=new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
     async function decryptSnapshot(text,passphrase){
-      const b64=text.slice(ENC_PREFIX.length).replace(/\s+/g,'');
+      const gz=text.startsWith(ENC_PREFIX);
+      const prefix=gz?ENC_PREFIX:ENC_PREFIX_V1;
+      const b64=text.slice(prefix.length).replace(/\s+/g,'');
       const bin=atob(b64),bytes=new Uint8Array(bin.length);
       for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
       const salt=bytes.slice(0,16),iv=bytes.slice(16,28),ct=bytes.slice(28);
@@ -758,8 +789,20 @@
       const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:ENC_ITER},km,256);
       const key=await crypto.subtle.importKey('raw',bits,{name:'AES-GCM'},false,['decrypt']);
       const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
-      return JSON.parse(new TextDecoder().decode(plain));
+      const out=gz?await gunzipBytes(plain):new Uint8Array(plain);
+      return JSON.parse(new TextDecoder().decode(out));
     }
+    /* ---------- 加载层（首次访问欢迎提示 + 阶段文字） ---------- */
+    function showLoading(first){
+      el('load-title').textContent=first?'欢迎使用店铺经营数据':'正在加载数据';
+      el('load-hint').textContent=first
+        ?'首次打开需要获取并解密数据，请稍候；之后打开会明显更快。'
+        :'正在获取最新数据，请稍候…';
+      el('load-step').textContent='正在获取数据…';
+      el('loading').classList.add('show');
+    }
+    function setLoadStep(t){const s=el('load-step');if(s)s.textContent=t}
+    function hideLoading(){el('loading').classList.remove('show')}
     function askPassphrase(){
       return new Promise(resolve=>{
         const gate=el('encgate'),form=el('encform');
@@ -795,10 +838,19 @@
         const r=await fetch('/api/snapshot',{cache:'no-store'});
         if(r.ok){usingAPI=true;return await r.json()}
       }catch(err){}
-      const r2=await fetch('snapshot.json',{cache:'no-store'});
+      /* 静态模式：URL 带内容指纹（SNAP_VER）。指纹没变 → 浏览器/CDN 缓存直接命中，零下载；
+         内容变了 → 新 URL 自动拉取。本地源码里 SNAP_VER 是占位符，此时退回 no-store 保证拿到最新。 */
+      const hasVer=SNAP_VER&&SNAP_VER.indexOf('__')!==0;
+      const url=hasVer?('snapshot.json?v='+encodeURIComponent(SNAP_VER)):'snapshot.json';
+      setLoadStep('正在获取数据…');
+      const r2=await fetch(url,{cache:hasVer?'force-cache':'no-store'});
       if(!r2.ok)throw Error('快照读取失败 '+r2.status);
       const text=await r2.text();
-      if(text.startsWith(ENC_PREFIX))return await decryptFlow(text);
+      if(text.startsWith(ENC_PREFIX)||text.startsWith(ENC_PREFIX_V1)){
+        hideLoading();                 /* 口令门阶段收起加载层，避免遮住输入框 */
+        const out=await decryptFlow(text);
+        return out;
+      }
       return JSON.parse(text);
     }
     let lastLoadAt=0,loadBusy=false;
@@ -806,11 +858,15 @@
       if(loadBusy)return;
       loadBusy=true;lastLoadAt=Date.now();
       const btn=el('refresh');btn.disabled=true;btn.classList.add('spin');
+      let first=false;try{first=!localStorage.getItem('dash.visited')}catch(err){}
+      if(!silent)showLoading(first);
       try{
         const body=await loadSnapshot();
+        setLoadStep('正在渲染…');
         data=body;render();renderHealth();setupManagement();btn.title='刷新数据';
+        try{localStorage.setItem('dash.visited','1')}catch(err){}
       }catch(error){if(!silent)toast('数据读取失败');btn.title='读取失败：'+error.message}
-      finally{btn.disabled=false;btn.classList.remove('spin');loadBusy=false}
+      finally{btn.disabled=false;btn.classList.remove('spin');loadBusy=false;hideLoading()}
     }
     let managerEnabled=false,managerChecked=false,managerState=null,managerBusy=false,importShop=null,importToken=null,lastCompletedJob='';
     async function manageRequest(path,payload,extraHeaders){
