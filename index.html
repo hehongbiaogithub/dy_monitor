@@ -718,7 +718,7 @@ render();
 });
 el('exit').onclick=()=>{window.close();setTimeout(()=>toast('可直接关闭此页面退出'),350)};
 
-const ENC_PREFIX_V1='DASHENC1:',ENC_PREFIX='DASHENC2:',ENC_ITER=200000,SNAP_VER='3dd547addc';
+const ENC_PREFIX_V1='DASHENC1:',ENC_PREFIX='DASHENC2:',ENC_ITER=200000,SNAP_VER='b6c30bbd1d';
 async function gunzipBytes(buf){
 if(typeof DecompressionStream==='undefined')
 throw Error('当前浏览器过旧，不支持解压（请升级系统或换新版浏览器）');
