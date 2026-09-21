@@ -718,7 +718,7 @@ render();
 });
 el('exit').onclick=()=>{window.close();setTimeout(()=>toast('可直接关闭此页面退出'),350)};
 
-const ENC_PREFIX_V1='DASHENC1:',ENC_PREFIX='DASHENC2:',ENC_ITER=200000,SNAP_VER='e6762443e9';
+const ENC_PREFIX_V1='DASHENC1:',ENC_PREFIX='DASHENC2:',ENC_ITER=200000,SNAP_VER='0c7007d6a4';
 async function gunzipBytes(buf){
 if(typeof DecompressionStream==='undefined')
 throw Error('当前浏览器过旧，不支持解压（请升级系统或换新版浏览器）');
@@ -846,10 +846,12 @@ el('mg-next').textContent=next?'下次自动采集 '+date(next):'';
 el('mg-collect-all').disabled=!!running;el('mg-add').disabled=!!running;el('mg-publish').disabled=!!running;
 const makeShop=(shop,isRemoved)=>{
 const box=node('div','mg-shop'),info=node('div');
-info.append(node('strong','',shop.name),node('small','',`登录：${shop.login_status} · 已导入 ${shop.imported_days||0} 天`));
+const loginLabel={logged_in:'正常',needs_login:'需重新登录',unknown:'未知'}[shop.login_status]||shop.login_status;
+info.append(node('strong','',shop.name),node('small','',`登录：${loginLabel} · 已导入 ${shop.imported_days||0} 天`));
 const actions=node('div','mg-actions');
 if(isRemoved){actions.append(mgButton('恢复店铺','',()=>manageStart('restore',{shop_id:shop.id}),running))}
 else{
+if(shop.login_status!=='logged_in')actions.append(mgButton('重新登录','primary',()=>manageStart('login',{shop_id:shop.id}),running));
 actions.append(mgButton('采集','',()=>manageStart('collect',{shop_id:shop.id}),running));
 actions.append(mgButton('导入历史','',()=>{importShop=shop;el('mg-file').value='';el('mg-file').click()},running));
 actions.append(mgButton('移除','danger',()=>{
@@ -868,7 +870,7 @@ const job=el('mg-job');job.hidden=!s.job;
 if(s.job){job.textContent=`${s.job.message} · ${date(s.job.started_at)}`;
 if(!running&&s.job.id!==lastCompletedJob){lastCompletedJob=s.job.id;load(true)}
 }
-el('mg-cancel').hidden=!(running&&s.job.kind==='add');
+el('mg-cancel').hidden=!(running&&['add','login'].includes(s.job.kind));
 const pub=el('mg-publish-state');pub.replaceChildren(
 mgKv('上次采集结束',date(s.status?.last_end_at)),
 mgKv('最近采集结果',`${s.status?.last_status||'未知'} · 成功 ${s.status?.shops_ok??'—'} / 失败 ${s.status?.shops_fail??'—'}`),
